@@ -1,0 +1,129 @@
+Project 0
+
+The purpose of the project is to familiarize you with symbolic
+reasoning and the Common Lisp development environment.
+
+Please take the time to setup the Lisp development environment
+(explained below). IF YOU DO NOT SETUP A REASONABLE DEVELOPMENT
+ENVIRONMENT, THE OTHER COURSE PROJECTS WILL BE /EXTREMELY/ DIFFICULT.
+
+
+PROJECT INSTRUCTIONS
+====================
+
+
+1. Form groups of 2-4 to work on this project.  You may create a
+   github team in the course organization for your group.
+
+2. From the github.com interface for this repo, click `Use this
+   template` to import the starter code.  Create a new, private repo,
+   within the course organization beginning with the prefix
+   `CURRENT_SEMESTER-project-0-` and followed by your team name, e.g.,
+   s23-project-0-my-group.
+
+3. Give all group members access to the new repo.  The configuration
+   option is under the `Settings` tab and the `Collaborators & teams`
+   option.
+
+4. Clone the repo.
+
+        git clone git@github.com:mines-csci534/CURRENT_SEMESTER-project-0-TEAM
+
+5. Add all group members' names to the `AUTHORS` file.
+
+6. Complete the missing code (marked with (TODO)) in project-0.lisp
+
+7. Answer the report questions in project-0-report.tex.
+
+8. Push your code changes to your group repo in the course
+   organization before the project deadline.  At the project deadline,
+   the instructor will download for grading all repositories in the
+   course organization beginning with the prefix
+   `CURRENT_SEMESTER-project-0-`.
+
+9. Submit your report as a PDF on canvas. Include all group members'
+   names in the submitted PDF (only one group member needs to submit).
+
+
+LISP ENVIRONEMENT SETUP
+=======================
+
+Use SBCL (http://sbcl.org/) and Emacs/SLIME
+(https://common-lisp.net/project/slime/) on Linux to work on the
+project.  Your code will be graded using SBCL on Linux.
+
+You may use SBCL on any of the following:
+- Your own computer
+- A virtual machine
+- The isengard.mines.edu server
+- The ALAMODE Lab (BB136)
+
+SBCL Setup
+----------
+SBCL (Steel Bank Common Lisp) is high-performance Common Lisp system.
+
+On Debian/Ubuntu:
+
+    sudo apt-get install sbcl
+
+Other platforms: http://sbcl.org/platform-table.html
+
+Quicklisp/SLIME Setup
+---------------------
+
+Quicklisp (https://www.quicklisp.org/) is a lisp package manager.
+
+SLIME (https://common-lisp.net/project/slime/) is the Superior Lisp
+Interaction Mode for Emacs.
+
+    wget https://beta.quicklisp.org/quicklisp.lisp
+    sbcl --load quicklisp.lisp \
+         --eval '(quicklisp-quickstart:install)' \
+         --eval '(ql:add-to-init-file)' \
+         --eval '(ql:quickload "quicklisp-slime-helper")' \
+         --eval '(quit)'
+
+The above call to SBCL will print several commands at the end to add
+to your ~/.emacs file.  Add these commands to your ~/.emacs file.
+
+Finally, to improve security, set a password for slime connections:
+
+    (umask 077 && openssl rand 14 -base64 > ~/.slime-secret)
+
+Grading
+=======
+
+Your code will be run for grading using (approximately) the following
+procedure:
+
+    timeout -s 9 30 sbcl \
+            --noinform  \
+            --disable-debugger \
+            --load "project-0.lisp" \
+            --load "test-case.lisp"
+
+YOUR CODE NEEDS TO PRODUCE THE CORRECT RESULT TO RECEIVE CREDIT FOR
+EACH TESTCASE. MAKE SURE YOUR CODE LOADS CLEANLY WITHOUT COMPILATION
+ERRORS, EXTRA I/O, OR OTHER SIDE EFFECTS.
+
+Some of the test files are provided in the `./test/` directory.
+
+FAQ
+===
+
+Q: I want to do the project under MacOS X.  What should I do?
+
+A: The above instructions for SLIME under Linux should mostly work for
+   MacOS X as well.  You may find one of the MacOS X package managers,
+   such as Homebrew or MacPorts, to be convenient for installing SBCL
+   and Emacs.  However, the instructor will be able to provide
+   only limited support for MacOS X. To avoid grading errors due to
+   version incompabilities, please check that your code works
+   correctly on the isengard server or the ALAMODE workstations.
+
+Q: I want to do the project under Microsoft Windows.  What should I do?
+
+A: The instructor is not able to provide support for Microsoft
+   Windows.  To avoid grading errors due to version incompabilities,
+   please check that your code works correctly on the isengard server
+   or the ALAMODE workstations.
