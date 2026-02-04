@@ -62,31 +62,47 @@
                   (let ((args (map 'list #'recurse args)))
                     (case op
                       (+ (destructuring-bind (n vars) (assoc-comm #'+ 0 args)
-                           (TODO 'partial-eval-+)))
-                      (*
-                       (TODO 'partial-eval-*))
+			   (cond
+			     ((and (zerop n) (null vars)) 0)
+			     ;; If we have a number and one symbolic term, check if it's a negative term
+			     ((and (not (zerop n)) (= (length vars) 1))
+			      (let ((v (car vars)))
+				(if (and (listp v) (eq (car v) '-))
+				    `(- ,n ,(second v))  ; Clean output: (- 1 B)
+				    `(+ ,n ,v))))         ; Standard output: (+ 1 X)
+			     ((zerop n) (if (null (cdr vars)) (car vars) (cons '+ vars)))
+			     ((null vars) n)
+			     (t (cons '+ (cons n vars))))))
+                      (* (destructuring-bind (n vars) (assoc-comm #'* 1 args)
+			   (cond
+			     ((zerop n) 0)
+			     ((and (= n 1) (null vars)) 1)
+			     ((= n 1) (if (null (cdr vars)) (car vars) (cons '* vars)))
+			     ((null vars) n)
+			     (t (cons '* (cons n vars))))))
                       (- (cond
-                           ((null args)
-                            (error "No arguments to minus"))
-                           ((null (cdr args))
-                            (destructuring-bind (a) args
-                              (if (numberp a)
-                                  (- a)
-                                  `(- ,a))))
-                           (t
-                            (TODO 'partial-eval--))))
+			   ((null args) (error "No arguments to minus"))
+			   ;; Unary minus: (- x)
+			   ((null (cdr args)) (car (minus-args args)))
+			   ;; Binary/N-ary minus: (- a b c) => (+ a (- b) (- c))
+			   (t (recurse `(+ ,(car args)
+					   ,@(minus-args (cdr args)))))))
                       (/ (cond
                            ((null args)
                             (error "No arguments to div"))
                            ((null (cdr args))
                             (recurse `(/ 1 ,(car args))))
                            ((null (cddr args))
-                            (TODO 'partial-eval-/))
-                           (t
+                            (destructuring-bind (a b) args
+			      (cond
+				((and (numberp a) (numberp b)) (/ a b))
+				((numberp b) (recurse `(* ,a ,(/ 1 b))))
+				(t `(/ ,a ,b)))))
+			   (t
                             (recurse `(/ ,(car args)
                                          (* ,@(cdr args)))))))
-                      (expt
-                       (destructuring-bind (base power) args
+                       (expt
+			(destructuring-bind (base power) args
                          (cond
                            ((and (numberp base) (numberp power))
                             (expt base power))
@@ -131,15 +147,25 @@ Return NIL for unknown functions."
                   (not (eq exp var))))
            (add (a b) (list '+ a b))
            (mul (a b) (list '* a b))
-           (diff-mul (a b)
-             (TODO 'diff-mul))
-           (diff-div (a b)
-             (TODO 'diff-div))
-           (diff-chain (fun arg)
-             ;; Just handle simple, unary functions
+           (diff-mul (a b) ;;d/dv (f (v) ∗ g(v)) -> (d/dv f(v))*(g(v))+f(v)*(d/dv g(v))
+	     (let ((da (recurse a))
+		   (db (recurse b)))
+	       `(+ (* ,da ,b)
+		   (* ,a ,db))))
+           (diff-div (a b) ;;d/dt (f (t)/ g(t)) -> (d/dt f(t))/(g(t))-(f(t)∗d/dt g(t))/(g(t))^2
+             (let ((da (recurse a))
+		   (db (recurse b)))
+	       `(- (/ ,da ,b)
+		   (/ (* ,a ,db)(expt ,b 2)))))
+           (diff-chain (fun arg);;d/dv f (g(v)) ⇝ f′(g(v)) ∗d/dv g(v) 
              (if (constp arg)
                  0
-                 (TODO 'diff-chain)))
+                 (let ((df (deriv fun arg))    ; Get f'(g(v)) from the deriv table
+		       (dg (recurse arg)))
+		 (cond 
+		   ((null df) (unsupported `(,fun ,arg))) ; Error if function is unknown
+		   ((and (numberp dg) (= dg 1)) df)      ; If g' is 1, just return f'
+		   (t `(* ,df ,dg))))))
            (unsupported (exp)
              (error "Unsupported expression: `~A'" exp))
            (recurse (exp)
@@ -156,7 +182,11 @@ Return NIL for unknown functions."
                  (+
                   (cons '+ (map 'list #'recurse args)))
                  (-
-                  (TODO 'diff--))
+                  (cond
+		    ((null args) (error "minus requires arguments"))
+		    ((null (cdr args)) 
+		     `(-(recurse ,(car args))))
+		    (t (cons '- (map 'list #'recurse args)))))
                  (*
                   (cond
                     ((null args) 0)
