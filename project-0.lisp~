@@ -147,53 +147,42 @@ Return NIL for unknown functions."
                   (not (eq exp var))))
            (add (a b) (list '+ a b))
            (mul (a b) (list '* a b))
-           (diff-mul (a b) 
-             ;; d/dv (f(v) * g(v)) -> f(v)*g'(v) + f'(v)*g(v)
+           (diff-mul (a b) ;;d/dv (f (v) ∗ g(v)) -> (d/dv f(v))*(g(v))+f(v)*(d/dv g(v))
+	     (let ((da (recurse a))
+		   (db (recurse b)))
+	       `(+ (* ,da ,b)
+		   (* ,a ,db))))
+           (diff-div (a b) ;;d/dt (f (t)/ g(t)) -> (d/dt f(t))/(g(t))-(f(t)∗d/dt g(t))/(g(t))^2
              (let ((da (recurse a))
-                   (db (recurse b)))
-               `(+ (* ,a ,db)
-                   (* ,da ,b))))
-           (diff-div (a b) 
-             ;; d/dt (f(t) / g(t)) -> (f'(t)/g(t)) - (f(t)*g'(t)) / g(t)^2
-             (let ((da (recurse a))
-                   (db (recurse b)))
-               `(- (/ ,da ,b)
-                   (/ (* ,a ,db) (expt ,b 2)))))
-           (diff-chain (fun arg)
-             ;; d/dv f(g(v)) -> f'(g(v)) * g'(v) 
+		   (db (recurse b)))
+	       `(- (/ ,da ,b)
+		   (/ (* ,a ,db)(expt ,b 2)))))
+           (diff-chain (fun arg);;d/dv f (g(v)) ⇝ f′(g(v)) ∗d/dv g(v) 
              (if (constp arg)
                  0
                  (let ((df (deriv fun arg))    ; Get f'(g(v)) from the deriv table
-                       (dg (recurse arg)))
-                   (cond 
-                     ;; If function is unknown, create a symbolic DIFF form
-                     ((null df) 
-                      (let ((sym-diff `(diff (,fun ,arg) ,var)))
-                        (if (and (numberp dg) (= dg 1))
-                            sym-diff
-                            `(* ,sym-diff ,dg))))
-                     ;; If g' is 1, just return f'
-                     ((and (numberp dg) (= dg 1)) df)      
-                     ;; Standard chain rule
-                     (t `(* ,df ,dg))))))
+		       (dg (recurse arg)))
+		 (cond 
+		   ((null df) (unsupported `(,fun ,arg))) ; Error if function is unknown
+		   ((and (numberp dg) (= dg 1)) df)      ; If g' is 1, just return f'
+		   (t `(* ,df ,dg))))))
            (unsupported (exp)
              (error "Unsupported expression: `~A'" exp))
            (recurse (exp)
              (cond
-               ((constp exp) 0)
-               ((eq exp var) 1)
-               (t (recurse-op exp))))
+               ((constp exp)
+                0)
+               ((eq exp var)
+                1)
+               (t
+                (recurse-op exp))))
            (recurse-op (exp)
              (destructuring-bind (op &rest args) exp
                (case op
                  (+
                   (cons '+ (map 'list #'recurse args)))
                  (-
-                  (cond
-                    ((null args) (error "minus requires arguments"))
-                    ((null (cdr args)) 
-                     `(- ,(recurse (car args)))) ; Fixed spacing/quoting bug here
-                    (t (cons '- (map 'list #'recurse args)))))
+                  (TODO 'diff--))
                  (*
                   (cond
                     ((null args) 0)
@@ -209,7 +198,7 @@ Return NIL for unknown functions."
                     ((null (cdr args))
                      (recurse `(/ 1 ,(car args))))
                     ((null (cddr args))
-                     ;; quotient rule
+                     ;; chain rule
                      (diff-div (first args) (second args)))
                     (t (diff-div (first args) `(* ,@(cdr args))))))
                  (expt
